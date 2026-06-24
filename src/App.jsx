@@ -504,6 +504,7 @@ export default function App() {
         source_url: data.source_url,
         confidence: data.confidence,
         model_used: data.model_used,
+        response_time: data.response_time,
         feedbackGiven: null,
         relatedQuestions: []
       };
@@ -789,6 +790,15 @@ export default function App() {
                             <span style={{ fontSize: '11px', color: t.muted }}>
                               {msg.confidence === 'High' ? '🟢' : msg.confidence === 'Medium' ? '🟡' : '🔴'} {msg.confidence} Confidence
                             </span>
+                            {msg.response_time && (
+                              <span style={{
+                                fontSize: '11px',
+                                color: t.muted,
+                                marginLeft: '8px'
+                              }}>
+                                ⏱ {msg.response_time}s
+                              </span>
+                            )}
                             <span style={{ fontSize: '11px', backgroundColor: t.bg, border: `1px solid ${t.border}`, borderRadius: '4px', padding: '2px 8px', color: t.accent }}>
                               ⚡ {msg.model_used}
                             </span>
