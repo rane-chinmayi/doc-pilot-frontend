@@ -3,7 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const API_BASE_URL = 'https://docpilot-api-v061.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const getHistoryKey = (tool) => `amplitude_search_history_${tool}`;
 
@@ -35,7 +35,6 @@ export default function App() {
   ]);
   const [darkMode, setDarkMode] = useState(true);
   const [searchHistory, setSearchHistory] = useState(getHistory(selectedTool));
-  const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -102,7 +101,7 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    axios.get('https://docpilot-api-v061.onrender.com/analytics')
+    axios.get(`${API_BASE_URL}/analytics`)
       .then(res => {
         if (res.data.recent && res.data.recent.length >= 3) {
           const topQueries = res.data.recent
@@ -123,7 +122,7 @@ export default function App() {
   }, [selectedTool]);
 
   useEffect(() => {
-    axios.get('https://docpilot-api-v061.onrender.com/tools')
+    axios.get(`${API_BASE_URL}/tools`)
       .then(res => setTools(res.data.tools))
       .catch(() => {});
   }, []);
@@ -489,7 +488,7 @@ export default function App() {
     const interval = startLoadingAnimation();
 
     try {
-      const response = await axios.post('https://docpilot-api-v061.onrender.com/ask', {
+      const response = await axios.post(`${API_BASE_URL}/ask`, {
         query: searchQuery,
         model: selectedModel,
         tool: selectedTool
@@ -513,7 +512,7 @@ export default function App() {
 
       // Fetch related questions
       try {
-        const relatedRes = await axios.post('https://docpilot-api-v061.onrender.com/related', {
+        const relatedRes = await axios.post(`${API_BASE_URL}/related`, {
           query: searchQuery,
           answer: data.answer,
           model: selectedModel
@@ -541,7 +540,7 @@ export default function App() {
     if (msg) {
       const idx = messages.indexOf(msg);
       const userMsg = messages.slice(0, idx).reverse().find(m => m.type === 'user');
-      axios.post('https://docpilot-api-v061.onrender.com/feedback', {
+      axios.post(`${API_BASE_URL}/feedback`, {
         query: userMsg?.content || '',
         answer: msg.content,
         feedback: type
@@ -566,7 +565,7 @@ export default function App() {
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
     try {
-      const response = await axios.get('https://docpilot-api-v061.onrender.com/analytics');
+      const response = await axios.get(`${API_BASE_URL}/analytics`);
       setAnalytics(response.data);
     } catch (error) {
       console.error('Analytics fetch error:', error);
@@ -865,8 +864,6 @@ export default function App() {
                   placeholder={getPlaceholder()}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setShowHistory(true)}
-                  onBlur={() => setTimeout(() => setShowHistory(false), 200)}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && query.trim()) {
                       handleSearch(query);
@@ -909,35 +906,6 @@ export default function App() {
                   to focus
                 </span>
               </div>
-
-              {/* Search History Dropdown */}
-              {showHistory && searchHistory.length > 0 && (
-                <div style={{
-                  backgroundColor: t.card,
-                  border: `1px solid ${t.border}`,
-                  borderRadius: '12px',
-                  padding: '8px',
-                  marginTop: '8px',
-                  width: '100%',
-                  position: 'absolute',
-                  zIndex: 50,
-                  bottom: '100%',
-                  marginBottom: '8px',
-                }}>
-                  <p style={{ fontSize: '11px', color: t.muted, padding: '4px 8px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Recent Searches</p>
-                  {searchHistory.map((q, i) => (
-                    <div
-                      key={i}
-                      onMouseDown={() => { setQuery(q); setShowHistory(false); handleSearch(q); }}
-                      style={{ padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', color: t.text, display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = t.bg}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      🕒 {q}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </>
         )}
