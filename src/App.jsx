@@ -527,7 +527,7 @@ export default function App() {
     } catch (error) {
       clearInterval(interval);
       setMessages(prev => prev.map(msg =>
-        msg.loading ? { ...msg, loading: false, content: 'Sorry, failed to get answer. Please try again.' } : msg
+        msg.loading ? { ...msg, loading: false, content: 'Our AI models are currently busy. Please try again in a moment, or select a different model from the dropdown above.' } : msg
       ));
     }
   };
