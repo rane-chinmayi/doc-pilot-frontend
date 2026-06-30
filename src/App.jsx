@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -19,13 +19,29 @@ const saveToHistory = (query, tool) => {
   localStorage.setItem(getHistoryKey(tool), JSON.stringify(updated));
 };
 
+const evaluationData = {
+  totalQuestions: 50,
+  accuracy: 74.0,
+  avgResponseTime: 4.31,
+  avgManualTime: 27.26,
+  timeSavedPercent: 84.2,
+  byTool: [
+    { tool: 'Amplitude', accuracy: 75.0, questions: 20 },
+    { tool: 'Mixpanel', accuracy: 86.7, questions: 15 },
+    { tool: 'Google Analytics', accuracy: 60.0, questions: 15 }
+  ],
+  byConfidence: [
+    { level: 'High', accuracy: 100.0, count: 14 },
+    { level: 'Medium', accuracy: 66.7, count: 33 },
+    { level: 'Low', accuracy: 33.3, count: 3 }
+  ]
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('assistant');
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [analytics, setAnalytics] = useState(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [selectedTool, setSelectedTool] = useState('amplitude');
   const [tools, setTools] = useState([
@@ -99,22 +115,6 @@ export default function App() {
   useEffect(() => {
     document.body.style.backgroundColor = t.bg;
   }, [darkMode]);
-
-  useEffect(() => {
-    axios.get(`${API_BASE_URL}/analytics`)
-      .then(res => {
-        if (res.data.recent && res.data.recent.length >= 3) {
-          const topQueries = res.data.recent
-            .map(r => r.query)
-            .filter((q, i, arr) => arr.indexOf(q) === i)
-            .slice(0, 3);
-          if (topQueries.length === 3) {
-            setFaqQuestions(topQueries);
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     setFaqQuestions(getDefaultChips());
@@ -562,18 +562,6 @@ export default function App() {
     return interval;
   };
 
-  const fetchAnalytics = async () => {
-    setAnalyticsLoading(true);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/analytics`);
-      setAnalytics(response.data);
-    } catch (error) {
-      console.error('Analytics fetch error:', error);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
   return (
     <div style={styles.app}>
       <style>{`
@@ -631,7 +619,7 @@ export default function App() {
           <p style={styles.subtitle}>
             {activeTab === 'assistant'
               ? 'Get instant answers from your analytics tool docs'
-              : 'View usage metrics and query analytics'}
+              : 'Evaluation results across Amplitude, Mixpanel, and Google Analytics'}
           </p>
           <div style={styles.badge}>✦ Powered by Gemini AI + FAISS</div>
 
@@ -708,10 +696,7 @@ export default function App() {
               ...styles.tab,
               ...(activeTab === 'analytics' ? styles.tabActive : {})
             }}
-            onClick={() => {
-              setActiveTab('analytics');
-              fetchAnalytics();
-            }}
+            onClick={() => setActiveTab('analytics')}
           >
             📊 Analytics
           </button>
@@ -913,158 +898,82 @@ export default function App() {
         {/* ANALYTICS TAB */}
         {activeTab === 'analytics' && (
           <>
-            {/* Refresh Button */}
-            <button
-              style={styles.refreshButton}
-              onClick={fetchAnalytics}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#6d28d9'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = t.accent}
-              disabled={analyticsLoading}
-            >
-              {analyticsLoading ? '⏳ Loading...' : '🔄 Refresh Data'}
-            </button>
-
             <p style={{ fontSize: '13px', color: t.muted, marginBottom: '24px' }}>
-              📊 Showing combined metrics across Amplitude, Mixpanel and Google Analytics
+              📋 Based on a 50-question self-evaluation across Amplitude, Mixpanel, and Google Analytics
             </p>
 
-            {/* Metrics Grid */}
-            {analytics && (
-              <>
-                <div style={styles.metricsGrid}>
-                  <div style={styles.metricCard}>
-                    <div style={styles.metricValue}>{analytics.total}</div>
-                    <div style={styles.metricLabel}>Total Queries</div>
-                  </div>
-                  <div style={styles.metricCard}>
-                    <div style={styles.metricValue}>{analytics.positive}</div>
-                    <div style={styles.metricLabel}>Positive Feedback</div>
-                  </div>
-                  <div style={styles.metricCard}>
-                    <div style={styles.metricValue}>{analytics.negative}</div>
-                    <div style={styles.metricLabel}>Negative Feedback</div>
-                  </div>
-                  <div style={styles.metricCard}>
-                    <div style={styles.metricValue}>{analytics.deflection_rate.toFixed(1)}%</div>
-                    <div style={styles.metricLabel}>Deflection Rate</div>
-                  </div>
-                </div>
-
-                {/* Daily Query Trend */}
-                {analytics.daily_trend && analytics.daily_trend.length > 0 && (
-                  <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-                    <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>📈 Daily Query Trend</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={analytics.daily_trend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
-                        <XAxis dataKey="date" stroke={t.muted} fontSize={11} />
-                        <YAxis stroke={t.muted} fontSize={11} />
-                        <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} />
-                        <Line type="monotone" dataKey="queries" stroke="#7C3AED" strokeWidth={2} dot={{ fill: '#7C3AED' }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Queries by Tool */}
-                {analytics.tool_breakdown && analytics.tool_breakdown.length > 0 && (
-                  <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-                    <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>🔧 Queries by Tool</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={analytics.tool_breakdown}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
-                        <XAxis dataKey="tool" stroke={t.muted} fontSize={11} />
-                        <YAxis stroke={t.muted} fontSize={11} />
-                        <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} />
-                        <Bar dataKey="queries" fill="#7C3AED" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Top Questions */}
-                {analytics.top_questions && analytics.top_questions.length > 0 && (
-                  <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-                    <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>❓ Top Questions</h3>
-                    {analytics.top_questions?.map((q, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${t.border}` }}>
-                        <span style={{ color: t.text, fontSize: '14px', flex: 1, marginRight: '16px' }}>{q.question}</span>
-                        <span style={{ color: t.accent, fontSize: '13px', fontWeight: '600', backgroundColor: t.bg, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '2px 10px' }}>{q.count}x</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Deflection Rate by Tool */}
-                {analytics.tool_deflection && analytics.tool_deflection.length > 0 && (
-                  <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-                    <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>🎯 Deflection Rate by Tool</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={analytics.tool_deflection}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={t.border} />
-                        <XAxis dataKey="tool" stroke={t.muted} fontSize={11} />
-                        <YAxis stroke={t.muted} fontSize={11} unit="%" />
-                        <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} formatter={(value) => [`${value}%`, 'Deflection Rate']} />
-                        <Bar dataKey="rate" fill="#10B981" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Response Confidence */}
-                {analytics.confidence_breakdown && analytics.confidence_breakdown.length > 0 && (
-                  <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
-                    <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>🎯 Response Confidence</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie data={analytics.confidence_breakdown} dataKey="count" nameKey="level" cx="50%" cy="50%" outerRadius={80} label={({ level, count }) => `${level}: ${count}`}>
-                          {analytics.confidence_breakdown?.map((entry, i) => (
-                            <Cell key={i} fill={entry.level === 'High' ? '#10B981' : entry.level === 'Medium' ? '#EAB308' : '#EF4444'} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Recent Queries Table */}
-                <h3 style={{ color: t.text, marginBottom: '16px', fontSize: '16px' }}>Recent Queries (Last 10)</h3>
-                {analytics.recent.length > 0 ? (
-                  <table style={styles.analyticsTable}>
-                    <thead>
-                      <tr>
-                        <th style={styles.tableHeader}>Timestamp</th>
-                        <th style={styles.tableHeader}>Query</th>
-                        <th style={styles.tableHeader}>Feedback</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.recent.map((query, idx) => (
-                        <tr key={idx}>
-                          <td style={styles.tableCell}>{new Date(query.timestamp).toLocaleString()}</td>
-                          <td style={styles.tableCell}>{query.query}</td>
-                          <td style={styles.tableCell}>
-                            {query.feedback === 'positive' ? '👍' : query.feedback === 'negative' ? '👎' : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div style={styles.emptyMessage}>
-                    No queries yet. Start asking questions in the Assistant tab!
-                  </div>
-                )}
-              </>
-            )}
-
-            {!analytics && !analyticsLoading && (
-              <div style={styles.emptyMessage}>
-                Click "Refresh Data" to load analytics
+            {/* Headline Metrics */}
+            <div style={styles.metricsGrid}>
+              <div style={styles.metricCard}>
+                <div style={styles.metricValue}>{evaluationData.totalQuestions}</div>
+                <div style={styles.metricLabel}>Questions Evaluated</div>
               </div>
-            )}
+              <div style={styles.metricCard}>
+                <div style={styles.metricValue}>{evaluationData.accuracy}%</div>
+                <div style={styles.metricLabel}>Answer Accuracy</div>
+              </div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricValue}>{evaluationData.avgResponseTime}s</div>
+                <div style={styles.metricLabel}>Avg Response Time</div>
+              </div>
+              <div style={styles.metricCard}>
+                <div style={styles.metricValue}>{evaluationData.timeSavedPercent}%</div>
+                <div style={styles.metricLabel}>Time Saved vs Manual</div>
+              </div>
+            </div>
+
+            {/* Accuracy by Tool */}
+            <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+              <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>🔧 Accuracy by Tool</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={evaluationData.byTool}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={t.border}/>
+                  <XAxis dataKey="tool" stroke={t.muted} fontSize={11}/>
+                  <YAxis stroke={t.muted} fontSize={11} unit="%"/>
+                  <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} formatter={(value) => [`${value}%`, 'Accuracy']}/>
+                  <Bar dataKey="accuracy" fill="#7C3AED" radius={[4, 4, 0, 0]}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Confidence Calibration */}
+            <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+              <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>🎯 Confidence Calibration</h3>
+              <p style={{ fontSize: '12px', color: t.muted, marginBottom: '16px' }}>Does the confidence badge actually predict accuracy?</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={evaluationData.byConfidence}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={t.border}/>
+                  <XAxis dataKey="level" stroke={t.muted} fontSize={11}/>
+                  <YAxis stroke={t.muted} fontSize={11} unit="%"/>
+                  <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} formatter={(value) => [`${value}%`, 'Accuracy']}/>
+                  <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
+                    {evaluationData.byConfidence.map((entry, i) => (
+                      <Cell key={i} fill={entry.level === 'High' ? '#10B981' : entry.level === 'Medium' ? '#EAB308' : '#EF4444'}/>
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Response Time Comparison */}
+            <div style={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+              <h3 style={{ color: t.text, fontSize: '16px', marginBottom: '16px' }}>⏱ DocPilot vs Manual Search</h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={[
+                  { method: 'DocPilot', seconds: evaluationData.avgResponseTime },
+                  { method: 'Manual Search', seconds: evaluationData.avgManualTime }
+                ]} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={t.border}/>
+                  <XAxis type="number" stroke={t.muted} fontSize={11} unit="s"/>
+                  <YAxis type="category" dataKey="method" stroke={t.muted} fontSize={12} width={100}/>
+                  <Tooltip contentStyle={{ backgroundColor: t.card, border: `1px solid ${t.border}`, borderRadius: '8px', color: t.text }} formatter={(value) => [`${value}s`, 'Time']}/>
+                  <Bar dataKey="seconds" radius={[0, 4, 4, 0]}>
+                    <Cell fill="#7C3AED"/>
+                    <Cell fill="#6B7280"/>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </>
         )}
 
