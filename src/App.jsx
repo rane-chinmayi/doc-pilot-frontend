@@ -467,18 +467,21 @@ export default function App() {
     { value: 'gemini-2.0-flash-lite', label: '💡 Gemini 2.0 Flash Lite', description: 'Most generous' },
   ];
 
-  const loadingMessages = [
-    '🔍 Searching Amplitude docs...',
-    '📄 Reading relevant sections...',
-    '🧠 Thinking...',
-    '✍️ Generating answer...',
-  ];
+  const getLoadingMessages = (tool) => {
+    const toolName = tools.find(t => t.key === tool)?.name || 'Amplitude';
+    return [
+      `🔍 Searching ${toolName} docs...`,
+      '📄 Reading relevant sections...',
+      '🧠 Thinking...',
+      '✍️ Generating answer...',
+    ];
+  };
 
   const handleSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
 
     const userMsg = { id: Date.now(), type: 'user', content: searchQuery };
-    const loadingMsg = { id: Date.now() + 1, type: 'assistant', content: loadingMessages[0], loading: true };
+    const loadingMsg = { id: Date.now() + 1, type: 'assistant', content: getLoadingMessages(selectedTool)[0], loading: true };
 
     setMessages(prev => [...prev, userMsg, loadingMsg]);
     setQuery('');
@@ -552,7 +555,7 @@ export default function App() {
     setLoadingStep(0);
     const interval = setInterval(() => {
       setLoadingStep(prev => {
-        if (prev >= loadingMessages.length - 1) {
+        if (prev >= getLoadingMessages(selectedTool).length - 1) {
           clearInterval(interval);
           return prev;
         }
@@ -765,7 +768,7 @@ export default function App() {
                       {msg.loading ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: t.accent, animation: 'pulse 1s infinite' }}/>
-                          <span style={{ color: t.muted, fontSize: '14px' }}>{loadingMessages[loadingStep]}</span>
+                          <span style={{ color: t.muted, fontSize: '14px' }}>{getLoadingMessages(selectedTool)[loadingStep]}</span>
                         </div>
                       ) : (
                         <>
